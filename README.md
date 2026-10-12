@@ -65,5 +65,5 @@ Covers alert detection, scattered attempts (no alert), and parsing of normal, `i
 - Key-based SSH authentication and least privilege (log access via the `adm` group instead of root)
 - Writing unit tests with pytest
 
-\- Writing unit tests with pytest
+
 
