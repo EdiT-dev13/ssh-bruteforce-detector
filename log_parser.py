@@ -4,11 +4,14 @@ from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime
 
+import db
+
 SSH_HOST = "edi@127.0.0.1"
 SSH_PORT = "2222"
 
 PATTERN = re.compile(
-    r"^(?P<time>\S+) .*Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+) port"
+    r"^(?P<time>\S+) .*Failed password for (?:invalid user )?(?P<user>\S+) "
+    r"from (?P<ip>\S+) port (?P<port>\d+)\b"
 )
 
 
@@ -17,6 +20,7 @@ class LogEntry:
     time: datetime
     user: str
     ip: str
+    source_port: str = ""
 
 
 def fetch_lines():
@@ -38,13 +42,14 @@ def fetch_lines():
 
 
 def parse_line(line):
-    m = PATTERN.search(line)
-    if not m:
+    match = PATTERN.search(line)
+    if not match:
         return None
     return LogEntry(
-        time=datetime.fromisoformat(m.group("time")),
-        user=m.group("user"),
-        ip=m.group("ip"),
+        time=datetime.fromisoformat(match.group("time")),
+        user=match.group("user"),
+        ip=match.group("ip"),
+        source_port=match.group("port"),
     )
 
 
@@ -64,39 +69,61 @@ class Detector:
 
     def find_bruteforce(self, entries):
         times_by_ip = defaultdict(list)
-        for e in entries:
-            times_by_ip[e.ip].append(e.time)
-
+        for entry in entries:
+            times_by_ip[entry.ip].append(entry.time)
         alerts = []
         for ip, times in times_by_ip.items():
             times.sort()
             window = deque()
-            for t in times:
-                window.append(t)
-                while (t - window[0]).total_seconds() > self.window_seconds:
+            for timestamp in times:
+                window.append(timestamp)
+                while (timestamp - window[0]).total_seconds() > self.window_seconds:
                     window.popleft()
                 if len(window) > self.threshold:
-                    alerts.append((ip, t, len(window)))
+                    alerts.append((ip, timestamp, len(window)))
                     window.clear()
         return alerts
 
 
 if __name__ == "__main__":
-    entries = parse_lines(fetch_lines())
-    print(f"{len(entries)} Fehlversuche eingelesen\n")
+    fetched_entries = parse_lines(fetch_lines())
+    conn = db.connect()
+    try:
+        new_entries = db.save_entries(conn, fetched_entries)
+        rows = db.load_rows(conn)
+        entries = [
+            LogEntry(
+                time=datetime.fromisoformat(timestamp),
+                user=user,
+                ip=ip,
+                source_port=source_port,
+            )
+            for timestamp, user, ip, source_port in rows
+        ]
 
-    detector = Detector(window_seconds=120, threshold=5)
-    alerts = detector.find_bruteforce(entries)
-    if alerts:
-        for ip, t, n in alerts:
-            print(f"ALARM: {ip} hatte {n} Fehlversuche, erkannt um {t}")
-    else:
-        print("Keine Auffälligkeiten.")
+        print(f"{len(fetched_entries)} Einträge abgerufen, {new_entries} neu gespeichert")
+        print(f"{len(entries)} Einträge insgesamt in der Datenbank\n")
 
-    print("\nTop IPs:")
-    for ip, n in Counter(e.ip for e in entries).most_common(5):
-        print(f"  {ip}: {n}")
+        detector = Detector(window_seconds=120, threshold=5)
+        detected_alerts = detector.find_bruteforce(entries)
+        new_alerts = db.save_alerts(
+            conn, detected_alerts, detector.window_seconds, detector.threshold
+        )
 
-    print("\nTop Usernamen:")
-    for user, n in Counter(e.user for e in entries).most_common(5):
-        print(f"  {user}: {n}")
+        if new_alerts:
+            for ip, timestamp, attempts in new_alerts:
+                print(f"NEUER ALARM: {ip} hatte {attempts} Fehlversuche, erkannt um {timestamp}")
+        elif detected_alerts:
+            print(f"{len(detected_alerts)} bekannte Auffälligkeit(en), keine neuen Alarme.")
+        else:
+            print("Keine Auffälligkeiten.")
+
+        print("\nTop IPs:")
+        for ip, count in Counter(entry.ip for entry in entries).most_common(5):
+            print(f"  {ip}: {count}")
+
+        print("\nTop Usernamen:")
+        for user, count in Counter(entry.user for entry in entries).most_common(5):
+            print(f"  {user}: {count}")
+    finally:
+        conn.close()

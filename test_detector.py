@@ -8,13 +8,13 @@ def make_entries(ip, offsets_seconds):
 
 
 def test_alarm_bei_schnellen_versuchen():
-    entries = make_entries("1.2.3.4", [0, 5, 10, 15, 20, 25])  
+    entries = make_entries("1.2.3.4", [0, 5, 10, 15, 20, 25])
     alerts = Detector(window_seconds=120, threshold=5).find_bruteforce(entries)
     assert len(alerts) == 1
 
 
 def test_kein_alarm_bei_verstreuten_versuchen():
-    entries = make_entries("1.2.3.4", [0, 600, 1200, 1800, 2400, 3000])  
+    entries = make_entries("1.2.3.4", [0, 600, 1200, 1800, 2400, 3000])
     alerts = Detector(window_seconds=120, threshold=5).find_bruteforce(entries)
     assert alerts == []
 
@@ -24,6 +24,7 @@ def test_parse_line_normaler_user():
     entry = parse_line(line)
     assert entry.user == "edi"
     assert entry.ip == "10.0.2.2"
+    assert entry.source_port == "54321"
 
 
 def test_parse_line_invalid_user():
@@ -31,6 +32,7 @@ def test_parse_line_invalid_user():
     entry = parse_line(line)
     assert entry.user == "admin"
     assert entry.ip == "10.0.2.2"
+    assert entry.source_port == "54322"
 
 
 def test_parse_line_ignoriert_fremde_zeilen():
