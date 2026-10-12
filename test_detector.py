@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from parser import Detector, LogEntry, parse_line
+from log_parser import Detector, LogEntry, parse_line
 
 
 def make_entries(ip, offsets_seconds):
@@ -8,13 +8,13 @@ def make_entries(ip, offsets_seconds):
 
 
 def test_alarm_bei_schnellen_versuchen():
-    entries = make_entries("1.2.3.4", [0, 5, 10, 15, 20, 25])  # 6 in 25 Sekunden
+    entries = make_entries("1.2.3.4", [0, 5, 10, 15, 20, 25])  
     alerts = Detector(window_seconds=120, threshold=5).find_bruteforce(entries)
     assert len(alerts) == 1
 
 
 def test_kein_alarm_bei_verstreuten_versuchen():
-    entries = make_entries("1.2.3.4", [0, 600, 1200, 1800, 2400, 3000])  # 6 in 50 Minuten
+    entries = make_entries("1.2.3.4", [0, 600, 1200, 1800, 2400, 3000])  
     alerts = Detector(window_seconds=120, threshold=5).find_bruteforce(entries)
     assert alerts == []
 
