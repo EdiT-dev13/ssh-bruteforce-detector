@@ -80,7 +80,7 @@ Top Usernamen:
   admin: 3
 ```
 
-The exact output depends on the available log data. When the same events are processed again, already stored entries should not be inserted a second time.****
+The exact output depends on the available log data. When the same events are processed again, already stored entries should not be inserted a second time.
 
 ## Tests
 
