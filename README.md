@@ -66,21 +66,21 @@ Database files are excluded through `.gitignore`. The local database should not 
 The following is an illustrative example of the detector's output:
 
 ```text
-24 failed attempts parsed
-24 new entries saved
+24 Einträge abgerufen, 24 neu gespeichert
+24 Einträge insgesamt in der Datenbank
 
-ALARM: 10.0.2.2 had 6 failed attempts, detected at 2026-10-12 13:00:20+02:00
+NEUER ALARM: 10.0.2.2 hatte 6 Fehlversuche, erkannt um 2026-10-12 13:00:20+02:00
 
 Top IPs:
   10.0.2.2: 24
 
-Top usernames:
+Top Usernamen:
   test: 6
   edi: 3
   admin: 3
 ```
 
-The exact output depends on the available log data. When the same events are processed again, already stored entries should not be inserted a second time.
+The exact output depends on the available log data. When the same events are processed again, already stored entries should not be inserted a second time.****
 
 ## Tests
 
